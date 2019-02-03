@@ -1,0 +1,7 @@
+ # TAP Project Structure, Documents, Artifact Templates and Tools
+
+This is a general project directory structure for Team Analytics Process developed by ASM Research. It also contains templates for various documents that are recommended as part of executing an analytics project when using TAP. 
+
+[Team Analytics Process (TAP)](URL) is an agile, iterative methodology to deliver analytics solutions and intelligent applications efficiently using a DevOps mindset. TAP helps improve team collaboration and learning. It contains a distillation of best practices and structures from Microsoft, IBM and others in the industry that facilitate the successful implementation of data and analytics initiatives.
+
+TAP is supported through an analytics lifecycle definition, standardized project structure, artifact templates, shared infrastructure and resources and [tools and utilities(URL)[ for productive project execution. 
