@@ -27,7 +27,27 @@ Login-OnPremisesDataGateway -EmailAddress christopher.small@asmr.com # Current b
 
 # Get the list of gateway clusters and save to .csv
 $allGatewayClusters = Get-OnPremisesDataGatewayClusters
-$allGatewayClusters | Export-Csv -Path $HOME\Documents\PowerShellResults\GatewayClusters.csv -Delimiter ";" -NoTypeInformation
+$unpackedGateways = @()
+foreach($cluster in $allGatewayClusters)
+{
+    foreach($gateway in $cluster.gateways | ConvertFrom-Json) 
+    {
+        foreach($property in $cluster.PSObject.Properties)
+        {
+            if($property.Name -ne "gateways" -and $property.Name -ne "expiryDate") 
+            {
+                $gateway | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+            }
+        }
+
+        $unpackedGateways += $gateway
+
+    }
+    
+}
+
+
+$unpackedGateways | Export-Csv -Path $HOME\Documents\PowerShellResults\GatewayClusters.csv -Delimiter ";" -NoTypeInformation
 
 # Get the list of gateways within each cluster and save to .csv
 Write-Host "Write gateways for each cluster"
