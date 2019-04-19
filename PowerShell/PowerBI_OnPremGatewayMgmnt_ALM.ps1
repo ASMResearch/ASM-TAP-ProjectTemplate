@@ -49,6 +49,75 @@ foreach($cluster in $allGatewayClusters)
 
 $unpackedGateways | Export-Csv -Path $HOME\Documents\PowerShellResults\GatewayClusters.csv -Delimiter ";" -NoTypeInformation
 
+Write-Host "Writing Cluster Gateways to AERA"
+
+try {
+	$sqlConn = New-Object System.Data.SqlClient.SqlConnection
+	$sqlConn.ConnectionString = "Server=S1ASMSDB-01;Integrated Security=true;Initial Catalog=AERA;Connection Timeout=60"
+	$sqlConn.Open()
+	
+	$removeCurrentDataQuery = "DELETE FROM AERA.dbo.PBI_GateWayClusters"
+	
+	$sqlcmd = New-Object System.Data.SqlClient.SqlCommand
+	$sqlcmd.Connection = $sqlConn
+	$sqlcmd.CommandText = $removeCurrentDataQuery
+	$sqlcmd.ExecuteNonQuery() 
+	Write-Host "Removed prior data from PBI_GatewayClusters"
+	
+
+	$insertCommand = "INSERT INTO AERA.dbo.PBI_GateWayClusters (GateWayId, GatewayObjectId, GatewayName, GatewayStatus, IsAnchorGateway, GatewayClusterStatus, GatewayPublicKey, GatewayVersion, GatewayVersionStatus, ExpiryDate, GatewayContactInformation, GatewayMachine, ObjectId, Name, Description, Permission, VersionStatus, LoadBalancingType) VALUES (@GateWayId, @GatewayObjectId, @GatewayName, @GatewayStatus, @IsAnchorGateway, @GatewayClusterStatus, @GatewayPublicKey, @GatewayVersion, @GatewayVersionStatus, @ExpiryDate, @GatewayContactInformation, @GatewayMachine, @ObjectId, @Name, @Description, @Permission, @VersionStatus, @LoadBalancingType);"
+	
+	
+	
+	 
+	 
+	
+	foreach($gateway in $unpackedGateways) 
+	{
+        $sqlcmd = New-Object System.Data.SqlClient.SqlCommand
+	    $sqlcmd.Connection = $sqlConn
+	    $sqlcmd.CommandText = $insertCommand
+        $sqlcmd.Parameters.AddWithValue("@GateWayId", $gateway.gatewayId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayObjectId", $gateway.gatewayObjectId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayName", $gateway.gatewayName + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayStatus", $gateway.gatewayStatus + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@IsAnchorGateway", $gateway.isAnchorGateway  ) | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayClusterStatus", $gateway.gatewayClusterStatus + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayPublicKey", $gateway.gatewayPublicKey + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayVersion", $gateway.gatewayVersion + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayVersionStatus", $gateway.gatewayVersionStatus + "") | Out-Null
+        
+        if(!$gateway.expiryDate) 
+        {
+            $sqlcmd.Parameters.AddWithValue("@ExpiryDate", [DBNull]::Value) | Out-Null
+        }
+        else 
+        {
+             $sqlcmd.Parameters.AddWithValue("@ExpiryDate", $gateway.expiryDate) | Out-Null
+        }
+
+        
+        $sqlcmd.Parameters.AddWithValue("@GatewayContactInformation", $gateway.gatewayContactInformation + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayMachine", $gateway.gatewayMachine + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@ObjectId", $gateway.objectId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@Name", $gateway.name + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@Description", $gateway.description + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@Permission", $gateway.permission + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@VersionStatus", $gateway.versionStatus + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@LoadBalancingType", $gateway.loadBalancingType + "") | Out-Null
+		   
+		$sqlcmd.ExecuteNonQuery() 
+	}
+	
+} catch { 
+	Write-Host "SQL Failure"
+	Write-Host $_
+    $sqlConn.Close()
+}
+ 
+
+$sqlConn.Close()
+
 # Get the list of gateways within each cluster and save to .csv
 Write-Host "Write gateways for each cluster"
 $allClusterGateways = @()
