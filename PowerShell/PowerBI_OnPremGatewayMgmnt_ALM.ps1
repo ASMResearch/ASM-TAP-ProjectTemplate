@@ -5,6 +5,13 @@ $prmExecutionPolicy = "Unrestricted"
 $prmMicrosoftPowerBIMgmt = "MicrosoftPowerBIMgmt"
 $prmOnPremisesDataGatewayHAMgmtName = "OnPremisesDataGatewayHAMgmt"
 $prmOnPremisesDataGatewayHAMgmtPath = "C:\Program Files\On-premises data gateway\OnPremisesDataGatewayHAMgmt.psm1"
+$sqlConnectionString = "Server=S1ASMSDB-01;Integrated Security=true;Initial Catalog=AERA;Connection Timeout=60"
+
+$transcriptFilePath = ".\"
+$transcriptFileName = "onPreMGatewayMgmtALM-" + [DateTime]::Now.ToString("yyyyMMdd-HHmmss")  + ".txt"
+$transcriptFullPath = $transcriptFilePath + $transcriptFileName
+Start-Transcript $transcriptFullPath
+
 
 # Variables
 $varStartingLocation = Get-Location
@@ -46,31 +53,24 @@ foreach($cluster in $allGatewayClusters)
     
 }
 
-
-$unpackedGateways | Export-Csv -Path $HOME\Documents\PowerShellResults\GatewayClusters.csv -Delimiter ";" -NoTypeInformation
-
 Write-Host "Writing Cluster Gateways to AERA"
 
 try {
 	$sqlConn = New-Object System.Data.SqlClient.SqlConnection
-	$sqlConn.ConnectionString = "Server=S1ASMSDB-01;Integrated Security=true;Initial Catalog=AERA;Connection Timeout=60"
+	$sqlConn.ConnectionString = $sqlConnectionString
 	$sqlConn.Open()
 	
-	$removeCurrentDataQuery = "DELETE FROM AERA.dbo.PBI_GateWayClusters"
+	$removeCurrentDataQuery = "DELETE FROM AERA.dbo.PBI_GatewayClusters"
 	
 	$sqlcmd = New-Object System.Data.SqlClient.SqlCommand
 	$sqlcmd.Connection = $sqlConn
 	$sqlcmd.CommandText = $removeCurrentDataQuery
 	$sqlcmd.ExecuteNonQuery() 
-	Write-Host "Removed prior data from PBI_GatewayClusters"
 	
-
-	$insertCommand = "INSERT INTO AERA.dbo.PBI_GateWayClusters (GateWayId, GatewayObjectId, GatewayName, GatewayStatus, IsAnchorGateway, GatewayClusterStatus, GatewayPublicKey, GatewayVersion, GatewayVersionStatus, ExpiryDate, GatewayContactInformation, GatewayMachine, ObjectId, Name, Description, Permission, VersionStatus, LoadBalancingType) VALUES (@GateWayId, @GatewayObjectId, @GatewayName, @GatewayStatus, @IsAnchorGateway, @GatewayClusterStatus, @GatewayPublicKey, @GatewayVersion, @GatewayVersionStatus, @ExpiryDate, @GatewayContactInformation, @GatewayMachine, @ObjectId, @Name, @Description, @Permission, @VersionStatus, @LoadBalancingType);"
+    Write-Host "Removed prior data from PBI_GatewayClusters"
 	
+	$insertCommand = "INSERT INTO AERA.dbo.PBI_GatewayClusters (GateWayId, GatewayObjectId, GatewayName, GatewayStatus, IsAnchorGateway, GatewayClusterStatus, GatewayPublicKey, GatewayVersion, GatewayVersionStatus, ExpiryDate, GatewayContactInformation, GatewayMachine, ObjectId, Name, Description, Permission, VersionStatus, LoadBalancingType) VALUES (@GateWayId, @GatewayObjectId, @GatewayName, @GatewayStatus, @IsAnchorGateway, @GatewayClusterStatus, @GatewayPublicKey, @GatewayVersion, @GatewayVersionStatus, @ExpiryDate, @GatewayContactInformation, @GatewayMachine, @ObjectId, @Name, @Description, @Permission, @VersionStatus, @LoadBalancingType);"
 	
-	
-	 
-	 
 	
 	foreach($gateway in $unpackedGateways) 
 	{
@@ -106,15 +106,16 @@ try {
         $sqlcmd.Parameters.AddWithValue("@VersionStatus", $gateway.versionStatus + "") | Out-Null
         $sqlcmd.Parameters.AddWithValue("@LoadBalancingType", $gateway.loadBalancingType + "") | Out-Null
 		   
-		$sqlcmd.ExecuteNonQuery() 
+		$sqlcmd.ExecuteNonQuery() | Out-Null
 	}
 	
 } catch { 
-	Write-Host "SQL Failure"
+	Write-Host "SQL Failure writing PBI_GatewayClusters"
 	Write-Host $_
     $sqlConn.Close()
 }
  
+Write-Host "Finished writing" $unpackedGateways.Count "records to AERA.dbo.PBI_GatewayClusters"
 
 $sqlConn.Close()
 
@@ -128,22 +129,64 @@ foreach($cluster in $allGatewayClusters)
     $gateways = Get-OnPremisesDataClusterGateways -ClusterObjectId $cluster.objectId
     # 
 	$gateways | ForEach-Object{
-		$_ | Add-Member -MemberType NoteProperty -Name "Cluster ObjectId" -Value $cluster.objectId
+		$_ | Add-Member -MemberType NoteProperty -Name "clusterObjectId" -Value $cluster.objectId
     }
     # 
 	$gateways | ForEach-Object{
-		$_ | Add-Member -MemberType NoteProperty -Name "Cluster Name" -Value $cluster.name
+		$_ | Add-Member -MemberType NoteProperty -Name "clusterName" -Value $cluster.name
     }
     # 
 	$allClusterGateways = $allClusterGateways + $gateways
 }
-# 
-$allClusterGateways | Export-Csv -Path $HOME\Documents\PowerShellResults\ClusterGateways.csv -Delimiter ";" -NoTypeInformation
+	
+try
+{	
+    $sqlConn = New-Object System.Data.SqlClient.SqlConnection
+    $sqlConn.ConnectionString = $sqlConnectionString
+    $sqlConn.Open()
+	
+    $emptyClusterGatewaysQuery = "DELETE FROM AERA.dbo.PBI_ClusterGateways"
+	
+    $sqlcmd = New-Object System.Data.SqlClient.SqlCommand
+    $sqlcmd.Connection = $sqlConn
+    $sqlcmd.CommandText = $emptyClusterGatewaysQuery
+    $sqlcmd.ExecuteNonQuery() 
+	
+    Write-Host "Removed prior data from PBI_ClusterGateways"
+	
+    $insertCommand = "INSERT INTO AERA.dbo.PBI_ClusterGateways (GateWayId, GatewayObjectId, GatewayName, IsAnchorGateway, GatewayStatus, GatewayVersion, GatewayUpgradeState, GatewayClusterStatus, GatewayMachine, ClusterObjectId, ClusterName) Values (@GateWayId, @GatewayObjectId, @GatewayName, @IsAnchorGateway, @GatewayStatus, @GatewayVersion, @GatewayUpgradeState, @GatewayClusterStatus, @GatewayMachine, @ClusterObjectId, @ClusterName);"
 
-# 
+	foreach($gateway in $allClusterGateways) 
+	{
+        $sqlcmd = New-Object System.Data.SqlClient.SqlCommand
+	    $sqlcmd.Connection = $sqlConn
+	    $sqlcmd.CommandText = $insertCommand
 
-# Count
-Write-Host $allGatewayClusters.Count "GatewayClusters exported to .csv"
-Write-Host $allClusterGateways.Count "ClusterGateways exported to .csv"
-# 
+        $sqlcmd.Parameters.AddWithValue("@GateWayId", $gateway.gatewayId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayObjectId", $gateway.gatewayObjectId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayName", $gateway.gatewayName + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@IsAnchorGateway", $gateway.isAnchorGateway  ) | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayStatus", $gateway.gatewayStatus + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayVersion", $gateway.gatewayVersion + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayUpgradeState", $gateway.gatewayUpgradeState + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayClusterStatus", $gateway.gatewayClusterStatus + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@GatewayMachine", $gateway.gatewayMachine + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@ClusterObjectId", $gateway.clusterObjectId + "") | Out-Null
+        $sqlcmd.Parameters.AddWithValue("@ClusterName", $gateway.clusterName + "") | Out-Null
+         
+		   
+		$sqlcmd.ExecuteNonQuery() | Out-Null
+	}
+	
+} catch { 
+	Write-Host "SQL Failure writing to PBI_ClusterGateways"
+	Write-Host $_
+    $sqlConn.Close()
+}
+ 
+Write-Host "Finished writing" $allClusterGateways.Count "records to AERA.dbo.PBI_ClusterGateways"
+
+$sqlConn.Close() 
+ 
 Write-Host "Complete"
+Stop-Transcript
